@@ -6,4 +6,6 @@ internal static class ExperimentalFeatureFlags
     internal static readonly bool EnableByRefParametersInDelegates = false;
 
     internal static readonly bool EnableKotlinTypeGenerator = true;
+
+    internal static readonly bool EnableKotlinDelegateGenerator = true;
 }

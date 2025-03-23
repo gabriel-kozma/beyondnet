@@ -6,7 +6,7 @@ using Beyond.NET.CodeGenerator.Types;
 
 namespace Beyond.NET.CodeGenerator.Syntax.Kotlin;
 
-public class KotlinFieldSyntaxWriter: KotlinMethodSyntaxWriter, IFieldSyntaxWriter
+public partial class KotlinFieldSyntaxWriter: KotlinMethodSyntaxWriter, IFieldSyntaxWriter
 {
     public new string Write(object @object, State state, ISyntaxWriterConfiguration? configuration)
     {

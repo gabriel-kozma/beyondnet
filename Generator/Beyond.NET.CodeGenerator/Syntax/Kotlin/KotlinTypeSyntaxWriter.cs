@@ -11,7 +11,7 @@ using Settings = Beyond.NET.CodeGenerator.Generator.Kotlin.Settings;
 
 namespace Beyond.NET.CodeGenerator.Syntax.Kotlin;
 
-public class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWriter
+public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWriter
 {
     public const string JNA_CLASS_NAME = "CAPI";
     
@@ -127,6 +127,12 @@ public class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWriter
                     type,
                     typeDescriptorRegistry
                 );   
+            } else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
+                typeCode = WriteDelegateTypeDefs(
+                    type,
+                    state,
+                    kotlinConfiguration
+                );
             } else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator) {
                 typeCode = WriteKotlinType(
                     type,
