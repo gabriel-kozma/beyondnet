@@ -5,16 +5,16 @@ namespace Beyond.NET.CodeGenerator.Syntax.Kotlin;
 
 public struct Builder
 {
-    // public static Builders.GetOnlyProperty GetOnlyProperty(
-    //     string name,
-    //     string returnType
-    // )
-    // {
-    //     return new(
-    //         name,
-    //         returnType
-    //     );
-    // }
+    public static Builders.GetOnlyProperty GetOnlyProperty(
+        string name,
+        string returnType
+    )
+    {
+        return new(
+            name,
+            returnType
+        );
+    }
     //
     // public static Builders.TypeAlias TypeAlias
     // (
@@ -38,15 +38,15 @@ public struct Builder
         );
     }
     
-    // public static Builders.Class Class
-    // (
-    //     string name
-    // )
-    // {
-    //     return new(
-    //         name
-    //     );
-    // }
+    public static Builders.Class Class
+    (
+        string name
+    )
+    {
+        return new(
+            name
+        );
+    }
     //
     // public static Builders.Struct Struct
     // (
@@ -78,15 +78,15 @@ public struct Builder
     //     );
     // }
     //
-    // public static Builders.Protocol Protocol
-    // (
-    //     string name
-    // )
-    // {
-    //     return new(
-    //         name
-    //     );
-    // }
+    public static Builders.Interface Interface
+    (
+        string name
+    )
+    {
+        return new(
+            name
+        );
+    }
     
     public static Builders.Fun Fun
     (

@@ -129,9 +129,9 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
                 );   
             } else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
                 typeCode = WriteDelegateTypeDefs(
+                    kotlinConfiguration,
                     type,
-                    state,
-                    kotlinConfiguration
+                    state
                 );
             } else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator) {
                 typeCode = WriteKotlinType(
@@ -546,43 +546,43 @@ public val value: {{underlyingTypeName}}
             string fullKotlinTypeName = $"{kotlinTypeName} /* {fullTypeName} */";
             
             if (isInterface) {
-                typeDecl = new KotlinInterfaceDeclaration(
-                    fullKotlinTypeName,
-                    kotlinBaseTypeName ?? "IDNObject",
-                    interfaceConformancesString,
-                    KotlinVisibilities.Public,
-                    null
-                ).ToString();
+                typeDecl = Builder.Interface(fullKotlinTypeName)
+                    .BaseTypeName(kotlinBaseTypeName ?? "IDNObject")
+                    .InterfaceConformance(interfaceConformancesString)
+                    .Public()
+                    .Implementation()
+                    .Build()
+                    .ToString();
                 
                 string fullKotlinInterfaceImplTypeName = $"{kotlinTypeName}_DNInterface /* {fullTypeName} */";
                 
-                interfaceImplTypeDecl = new KotlinClassDeclaration(
-                    fullKotlinInterfaceImplTypeName,
-                    kotlinBaseTypeName ?? "DNObject",
-                    interfaceConformancesStringForInterfaceImpl,
-                    KotlinVisibilities.Open,
-                    new KotlinFunSignatureParameters([
+                interfaceImplTypeDecl = Builder.Class(fullKotlinInterfaceImplTypeName)
+                    .BaseTypeName(kotlinBaseTypeName ?? "DNObject")
+                    .InterfaceConformance(interfaceConformancesStringForInterfaceImpl)
+                    .Open()
+                    .PrimaryConstructorParameters(new KotlinFunSignatureParameters([
                         new KotlinFunSignatureParameter("handle", "Pointer")
-                    ]),
-                    [
+                    ]))
+                    .BaseTypePrimaryConstructorParameterNames([
                         "handle"
-                    ],
-                    null
-                ).ToString(); 
+                    ])
+                    .Implementation()
+                    .Build()
+                    .ToString();
             } else {
-                typeDecl = new KotlinClassDeclaration(
-                    fullKotlinTypeName,
-                    kotlinBaseTypeName ?? "DNObject",
-                    interfaceConformancesString,
-                    KotlinVisibilities.Open,
-                    new KotlinFunSignatureParameters([
+                typeDecl = Builder.Class(fullKotlinTypeName)
+                    .BaseTypeName(kotlinBaseTypeName ?? "DNObject")
+                    .InterfaceConformance(interfaceConformancesString)
+                    .Open()
+                    .PrimaryConstructorParameters(new KotlinFunSignatureParameters([
                         new KotlinFunSignatureParameter("handle", "Pointer")
-                    ]),
-                    [
+                    ]))
+                    .BaseTypePrimaryConstructorParameterNames([
                         "handle"
-                    ],
-                    null
-                ).ToString();
+                    ])
+                    .Implementation()
+                    .Build()
+                    .ToString();
             }
             // }
             
