@@ -6,22 +6,28 @@ namespace Beyond.NET.CodeGenerator.Syntax.Kotlin.Builders;
 public struct GetOnlyProperty
 {
     private readonly string m_name;
-    private readonly string m_typeName;
-    
+
     private KotlinVisibilities m_visibility = KotlinVisibilities.None;
+    private bool m_external = false;
     private bool m_override = false;
-    private bool m_throws = false;
+    private bool m_operator = false;
+    private string? m_extendedTypeName = null;
+    private string? m_parameters = null;
+    private string? m_returnTypeName = null;
     private string? m_implementation = null;
-    
-    public GetOnlyProperty(
+    private HashSet<string> m_attributes = new();
+
+    public GetOnlyProperty
+    (
         string name,
-        string typeName
+        string returnType
     )
     {
         m_name = name;
-        m_typeName = typeName;
+        m_returnTypeName = returnType;
+        m_attributes.Add("@JvmStatic");
     }
-
+    
     #region Visibility
     public GetOnlyProperty Visibility(KotlinVisibilities visibility)
     {
@@ -44,9 +50,8 @@ public struct GetOnlyProperty
     {
         return Visibility(KotlinVisibilities.Private);
     }
-    
     #endregion Visibility
-
+    
     #region Override
     public GetOnlyProperty Override(bool isOverride = true)
     {
@@ -56,15 +61,15 @@ public struct GetOnlyProperty
     }
     #endregion Override
 
-    #region Throws
-    public GetOnlyProperty Throws(bool throws = true)
+    #region ReturnTypeName
+    public GetOnlyProperty ReturnTypeName(string? returnTypeName = null)
     {
-        m_throws = throws;
+        m_returnTypeName = returnTypeName;
 
         return this;
     }
-    #endregion Throws
-
+    #endregion ReturnTypeName
+    
     #region Implementation
     public GetOnlyProperty Implementation(string? implementation = null)
     {
@@ -73,16 +78,15 @@ public struct GetOnlyProperty
         return this;
     }
     #endregion Implementation
-
+    
     #region Build
     public KotlinGetOnlyPropertyDeclaration Build()
     {
         return new(
             m_name,
             m_visibility,
-            m_override,
-            m_throws,
-            m_typeName,
+            m_returnTypeName,
+            m_attributes,
             m_implementation
         );
     }

@@ -288,18 +288,7 @@ public partial class KotlinTypeSyntaxWriter
         KotlinCodeBuilder kb = new();
 
         kb.AppendLine(memberPartsCode);
-
-        // #region Other Members
-        // string membersCode = WriteMembers(
-        //     configuration,
-        //     type,
-        //     state,
-        //     false
-        // );
-
-        // kb.AppendLine(membersCode);
-        // #endregion Other Members
-
+        
         string typeDecl = Builder.Class($"{typeInfo.KotlinTypeName} /* {typeInfo.FullTypeName} */")
             .BaseTypeName(typeInfo.KotlinBaseTypeName)
             .Public()
@@ -343,53 +332,8 @@ public partial class KotlinTypeSyntaxWriter
             .Implementation($"\"{fullTypeName}\"")
             .ToString();
 
-        string code = $"{typeNameDecl}\n\n{fullTypeNameDecl}";
-
-        return code;
+        return "companion object {\n" + $"{typeNameDecl}\n\n{fullTypeNameDecl}".IndentAllLines(1) + "\n}";;
     }
-
-    // private string WriteClosureTypeAlias(
-    //     Type type,
-    //     ParameterInfo[] parameterInfos,
-    //     string swiftReturnTypeName,
-    //     TypeDescriptorRegistry typeDescriptorRegistry,
-    //     out string closureTypeTypeAliasName
-    // )
-    // {
-    //     KotlinCodeBuilder kb = new();
-
-    //     string swiftFuncParameters = SwiftMethodSyntaxWriter.WriteParameters(
-    //         MemberKind.Method,
-    //         null,
-    //         Nullability.NotSpecified,
-    //         Nullability.NotSpecified,
-    //         false,
-    //         type,
-    //         parameterInfos,
-    //         false,
-    //         Array.Empty<Type>(),
-    //         false,
-    //         false,
-    //         typeDescriptorRegistry
-    //     );
-
-    //     string swiftClosureDecl = Builder.Closure()
-    //         .Parameters(swiftFuncParameters)
-    //         .ReturnTypeName(swiftReturnTypeName)
-    //         .ToString();
-
-    //     closureTypeTypeAliasName = "ClosureType";
-
-    //     string typeAliasDeclaration = Builder.TypeAlias(closureTypeTypeAliasName, swiftClosureDecl)
-    //         .Public()
-    //         .ToString();
-
-    //     kb.AppendLine(typeAliasDeclaration);
-
-    //     string code = kb.ToString();
-
-    //     return code;
-    // }
 
     private string WriteCreateCFunction(
         Type type,

@@ -127,13 +127,13 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
                     type,
                     typeDescriptorRegistry
                 );   
-            } else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
+            } /*else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
                 typeCode = WriteDelegateTypeDefs(
                     kotlinConfiguration,
                     type,
                     state
                 );
-            } else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator) {
+            } */else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator) {
                 typeCode = WriteKotlinType(
                     type,
                     state,
@@ -305,10 +305,32 @@ public val value: {{underlyingTypeName}}
 
             return string.Empty;
         }
+
+        TypeInfo? typeInfo = type as TypeInfo;
+        var isAdapter = false;
+        if (typeInfo != null) 
+        {
+            var declaredFields = typeInfo.DeclaredFields;
+            var delegates = declaredFields.Where(field => field.FieldType.BaseType == typeof(System.MulticastDelegate));
+            isAdapter = delegates.Count() > 0;
+            if (delegates.Count() > 0) 
+            {
+                foreach (var del in delegates) 
+                {
+                    Console.WriteLine("has delegates as base type" + del.FieldType.ToString());
+                }
+            }
+        }
         
         var cSharpMembers = cSharpUnmanagedResult.GeneratedTypes[type];
         // var cMembers = cResult.GeneratedTypes[type];
         
+        if (isAdapter)
+        {
+
+        } 
+        else 
+        {
         HashSet<MemberInfo> generatedMembers = new();
         
         KotlinCodeBuilder sbMembers = new();
@@ -375,10 +397,14 @@ public val value: {{underlyingTypeName}}
             }
         }
 
-        string membersCode = sbMembers.ToString()
-            .IndentAllLines(1);
+            string membersCode = sbMembers.ToString()
+                .IndentAllLines(1);
 
-        return membersCode;
+            Console.WriteLine("JNA" + membersCode);
+        
+            return membersCode;
+        }
+        return "";
     }
     #endregion JNA
 

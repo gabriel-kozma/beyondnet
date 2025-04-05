@@ -6,17 +6,15 @@ public struct KotlinGetOnlyPropertyDeclaration
 {
     public string Name { get; }
     public KotlinVisibilities Visibility { get; }
-    public bool IsOverride { get; }
-    public bool Throws { get; }
-    public string TypeName { get; }
+    public string? ReturnTypeName { get; }
+    public HashSet<string>? Attributes { get; }
     public string? Implementation { get; }
     
     public KotlinGetOnlyPropertyDeclaration(
         string name,
         KotlinVisibilities visibility,
-        bool isOverride,
-        bool throws,
-        string typeName,
+        string? returnTypeName,
+        HashSet<string>? attributes,
         string? implementation
     )
     {
@@ -25,58 +23,56 @@ public struct KotlinGetOnlyPropertyDeclaration
             : throw new ArgumentOutOfRangeException(nameof(name));
         
         Visibility = visibility;
-        IsOverride = isOverride;
-        Throws = throws;
-        TypeName = typeName;
-        Implementation = implementation;
+        
+        ReturnTypeName = !string.IsNullOrEmpty(returnTypeName)
+            ? returnTypeName
+            : null;
+
+        Attributes = attributes;
+        
+        Implementation = !string.IsNullOrEmpty(implementation)
+            ? implementation
+            : null;
     }
-    
+
     public override string ToString()
     {
-        const string var = "var";
-        const string get = "get";
-        string newLine = Environment.NewLine;
+        const string fun = "fun";
         
         string visibilityString = Visibility.ToKotlinSyntaxString();
-        
-        string overrideString = IsOverride
-            ? "override"
+
+        string returnString = !string.IsNullOrEmpty(ReturnTypeName)
+            ? $": {ReturnTypeName}"
             : string.Empty;
 
-        string throwsString = Throws
-            ? "throws"
-            : string.Empty;
+        string attributesString;
 
-        string? implementation = Implementation;
-        bool hasImplementation = !string.IsNullOrEmpty(implementation);
-
-        if (hasImplementation) {
-            implementation = implementation?.IndentAllLines(1);
+        if (Attributes is not null) {
+            attributesString = string.Join(" ", Attributes);
+        } else {
+            attributesString = string.Empty;
         }
 
-        const string openingBrace = "{";
-        const string closingBrace = "}";
-        
-        string[] signatureComponents = new[] {
+        string[] signatureComponents = [
+            attributesString,
             visibilityString,
-            overrideString,
-            var,
-            $"{Name}: {TypeName}",
-            openingBrace,
-            get,
-            throwsString,
-            hasImplementation 
-                ? openingBrace
-                : closingBrace
-        };
+            fun,
+            $"{Name}()",
+            returnString
+        ];
 
         string signature = KotlinFunSignatureComponents.ComponentsToString(signatureComponents);
-        string decl = signature;
+
+        string fullFunc;
         
-        if (hasImplementation) {
-            decl += $"{newLine}{implementation}{newLine}{closingBrace}{closingBrace}";
+        if (!string.IsNullOrEmpty(Implementation)) {
+            string indentedImpl = Implementation.IndentAllLines(1);
+            
+            fullFunc = $"{signature} {{\n{indentedImpl}\n}}";
+        } else {
+            fullFunc = signature;
         }
-        
-        return decl;
+
+        return fullFunc;
     }
 }
