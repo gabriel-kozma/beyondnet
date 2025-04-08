@@ -361,96 +361,92 @@ public val value: {{underlyingTypeName}}
                     [],
                     TypeDescriptorRegistry.Shared,
                     CodeLanguage.KotlinJNA);
-                return $$"""
-                    interface {{name}} : Callback {
+                    sbMembers.Append($$"""
+                    interface I{{name}} : Callback {
                         fun {{funcName}}({{parameters}}) : {{method.ReturnType.CTypeName()}}
                     }
-                """;
+                    """);
+                    sbMembers.AppendLine();
             }
         }
-        else
+        
+        foreach (var cSharpMember in cSharpMembers)
         {
-            foreach (var cSharpMember in cSharpMembers)
+            var member = cSharpMember.Member;
+
+            if (member is not null &&
+                generatedMembers.Contains(member))
             {
-                var member = cSharpMember.Member;
-
-                if (member is not null &&
-                    generatedMembers.Contains(member))
-                {
-                    continue;
-                }
-
-                var memberKind = cSharpMember.MemberKind;
-                var memberType = member?.MemberType;
-
-                IKotlinSyntaxWriter? syntaxWriter = GetSyntaxWriter(
-                    memberKind,
-                    memberType ?? MemberTypes.Custom
-                );
-
-                if (syntaxWriter == null)
-                {
-                    if (Settings.EmitUnsupported)
-                    {
-                        sbMembers.AppendLine(Builder.SingleLineComment($"TODO: Unsupported Member Type \"{memberType}\"").ToString());
-                    }
-
-                    continue;
-                }
-
-                object? target;
-
-                if (syntaxWriter is IDestructorSyntaxWriter)
-                {
-                    target = type;
-                }
-                else if (syntaxWriter is ITypeOfSyntaxWriter)
-                {
-                    target = type;
-                }
-                else
-                {
-                    target = member;
-                }
-
-                if (target == null)
-                {
-                    throw new Exception("No target");
-                }
-
-                // if ((interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.Protocol || interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ProtocolExtensionForDefaultImplementations) &&
-                //     (syntaxWriter is IDestructorSyntaxWriter || syntaxWriter is ITypeOfSyntaxWriter)) {
-                //     continue;
-                // }
-                //
-                // if (interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ImplementationClass &&
-                //     syntaxWriter is not IDestructorSyntaxWriter &&
-                //     syntaxWriter is not ITypeOfSyntaxWriter) {
-                //     continue;
-                // }
-
-                string memberCode = syntaxWriter.Write(
-                    target,
-                    state,
-                    configuration
-                );
-
-                sbMembers.AppendLine(memberCode);
-
-                if (member is not null)
-                {
-                    generatedMembers.Add(member);
-                }
+                continue;
             }
 
-            string membersCode = sbMembers.ToString()
-                .IndentAllLines(1);
+            var memberKind = cSharpMember.MemberKind;
+            var memberType = member?.MemberType;
 
-            Console.WriteLine("JNA" + membersCode);
+            IKotlinSyntaxWriter? syntaxWriter = GetSyntaxWriter(
+                memberKind,
+                memberType ?? MemberTypes.Custom
+            );
 
-            return membersCode;
+            if (syntaxWriter == null)
+            {
+                if (Settings.EmitUnsupported)
+                {
+                    sbMembers.AppendLine(Builder.SingleLineComment($"TODO: Unsupported Member Type \"{memberType}\"").ToString());
+                }
+
+                continue;
+            }
+
+            object? target;
+
+            if (syntaxWriter is IDestructorSyntaxWriter)
+            {
+                target = type;
+            }
+            else if (syntaxWriter is ITypeOfSyntaxWriter)
+            {
+                target = type;
+            }
+            else
+            {
+                target = member;
+            }
+
+            if (target == null)
+            {
+                throw new Exception("No target");
+            }
+
+            // if ((interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.Protocol || interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ProtocolExtensionForDefaultImplementations) &&
+            //     (syntaxWriter is IDestructorSyntaxWriter || syntaxWriter is ITypeOfSyntaxWriter)) {
+            //     continue;
+            // }
+            //
+            // if (interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ImplementationClass &&
+            //     syntaxWriter is not IDestructorSyntaxWriter &&
+            //     syntaxWriter is not ITypeOfSyntaxWriter) {
+            //     continue;
+            // }
+
+            string memberCode = syntaxWriter.Write(
+                target,
+                state,
+                configuration
+            );
+
+            sbMembers.AppendLine(memberCode);
+
+            if (member is not null)
+            {
+                generatedMembers.Add(member);
+            }
         }
-        return "";
+
+        string membersCode = sbMembers.ToString()
+            .IndentAllLines(1);
+
+        return membersCode;
     }
     #endregion JNA
 

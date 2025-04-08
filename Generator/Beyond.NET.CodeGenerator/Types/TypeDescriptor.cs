@@ -409,11 +409,7 @@ public class TypeDescriptor
                 return swiftTypeName;
             }
             case CodeLanguage.KotlinJNA: {
-                if (ManagedType.IsDelegate()) 
-                {
-                    return ManagedType.CTypeName();
-                }
-                else if (RequiresNativePointer || IsReadOnlyStructOfByte)
+                if (RequiresNativePointer || IsReadOnlyStructOfByte)
                 {
                     return "Pointer";
                 }
