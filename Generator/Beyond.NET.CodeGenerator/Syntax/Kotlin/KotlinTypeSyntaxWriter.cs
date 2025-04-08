@@ -11,12 +11,12 @@ using Settings = Beyond.NET.CodeGenerator.Generator.Kotlin.Settings;
 
 namespace Beyond.NET.CodeGenerator.Syntax.Kotlin;
 
-public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWriter
+public partial class KotlinTypeSyntaxWriter : IKotlinSyntaxWriter, ITypeSyntaxWriter
 {
     public const string JNA_CLASS_NAME = "CAPI";
-    
+
     public Settings Settings { get; }
-    
+
     private readonly Dictionary<MemberTypes, IKotlinSyntaxWriter> m_syntaxWriters = new() {
         { MemberTypes.Constructor, new KotlinConstructorSyntaxWriter() },
         { MemberTypes.Property, new KotlinPropertySyntaxWriter() },
@@ -24,15 +24,15 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
         { MemberTypes.Field, new KotlinFieldSyntaxWriter() },
         { MemberTypes.Event, new KotlinEventSyntaxWriter() }
     };
-    
+
     private KotlinDestructorSyntaxWriter m_destructorSyntaxWriter = new();
     private KotlinTypeOfSyntaxWriter m_typeOfSyntaxWriter = new();
-    
+
     public KotlinTypeSyntaxWriter(Settings settings)
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
-    
+
     static IEnumerable<(MethodInfo overload1, MethodInfo overload2, int[] arrayConflictIndices)>
         GetKotlinArrayParameterOverloadConflicts(List<MethodInfo> methods)
     {
@@ -43,34 +43,38 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
             if (c is 0) c = a.GetParameters().Length.CompareTo(b.GetParameters().Length);
             return c;
         });
-        
+
         var overloadSets = methods.GroupBy(static m => m.Name).Where(static g => g.Any()).ToList();
         foreach (var set in overloadSets)
         {
             List<int> conflictIndices = new();
-            
+
             var candidates = set.ToArray();
-            
-            for (var i = 0; i < candidates.Length; i++) {
+
+            for (var i = 0; i < candidates.Length; i++)
+            {
                 var method1 = candidates[i];
                 var params1 = method1.GetParameters();
-                
-                for (var j = i + 1; j < candidates.Length; j++) {
+
+                for (var j = i + 1; j < candidates.Length; j++)
+                {
                     var method2 = candidates[j];
                     var params2 = method2.GetParameters();
-                    
-                    if (params1.Length != params2.Length) 
+
+                    if (params1.Length != params2.Length)
                         continue;
 
                     conflictIndices.Clear();
-                    
-                    for (var p = 0; p < params1.Length; p++) {
+
+                    for (var p = 0; p < params1.Length; p++)
+                    {
                         var p1 = params1[p].ParameterType;
                         var p2 = params2[p].ParameterType;
 
                         if (p1 is { IsArray: true, HasElementType: true }
                             && p2 is { IsArray: true, HasElementType: true }
-                            && p1.GetElementType() != p2.GetElementType()) {
+                            && p1.GetElementType() != p2.GetElementType())
+                        {
                             conflictIndices.Add(p);
                         }
                     }
@@ -81,7 +85,7 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
             }
         }
     }
-    
+
     public string Write(object @object, State state, ISyntaxWriterConfiguration? configuration)
     {
         return Write((Type)@object, state, configuration);
@@ -94,66 +98,80 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
     )
     {
         TypeDescriptorRegistry typeDescriptorRegistry = TypeDescriptorRegistry.Shared;
-        
-        var kotlinConfiguration = (configuration as KotlinSyntaxWriterConfiguration)!; 
+
+        var kotlinConfiguration = (configuration as KotlinSyntaxWriterConfiguration)!;
         var generationPhase = kotlinConfiguration.GenerationPhase;
-        
-        if (state.CSharpUnmanagedResult is null) {
+
+        if (state.CSharpUnmanagedResult is null)
+        {
             throw new Exception("No CSharpUnmanagedResult provided");
         }
 
-        if (state.CResult is null) {
+        if (state.CResult is null)
+        {
             throw new Exception("No CResult provided");
         }
 
         string? fullTypeName = type.FullName;
 
-        if (fullTypeName == null) {
+        if (fullTypeName == null)
+        {
             return Builder.SingleLineComment($"Type \"{type.Name}\" was skipped. Reason: It has no full name.").ToString();
         }
 
         // TODO
-        if (type.IsGenericInAnyWay(true)) {
+        if (type.IsGenericInAnyWay(true))
+        {
             return Builder.SingleLineComment($"Type \"{type.Name}\" was skipped. Reason: It is generic somehow.").ToString();
         }
-        
+
         KotlinCodeBuilder sb = new();
 
         string typeCode;
-        
-        if (generationPhase == KotlinSyntaxWriterConfiguration.GenerationPhases.KotlinBindings) {
-            if (type.IsEnum) {
+
+        if (generationPhase == KotlinSyntaxWriterConfiguration.GenerationPhases.KotlinBindings)
+        {
+            if (type.IsEnum)
+            {
                 typeCode = WriteEnumType(
                     type,
                     typeDescriptorRegistry
-                );   
+                );
             } /*else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
                 typeCode = WriteDelegateTypeDefs(
                     kotlinConfiguration,
                     type,
                     state
                 );
-            } */else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator) {
+            } */
+            else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator)
+            {
                 typeCode = WriteKotlinType(
                     type,
                     state,
                     kotlinConfiguration
                 );
-            } else {
+            }
+            else
+            {
                 typeCode = Builder.SingleLineComment("TODO: ENABLE_EXPERIMENTAL_KOTLIN_TYPE_GENERATOR is false").ToString();
             }
-        } else if (generationPhase == KotlinSyntaxWriterConfiguration.GenerationPhases.JNA) {
+        }
+        else if (generationPhase == KotlinSyntaxWriterConfiguration.GenerationPhases.JNA)
+        {
             typeCode = WriteJnaType(
                 type,
                 state,
                 kotlinConfiguration
             );
-        } else {
+        }
+        else
+        {
             throw new Exception($"Unknown generation phase: {generationPhase}");
         }
-        
+
         sb.AppendLine(typeCode);
-        
+
         return sb.ToString();
     }
 
@@ -164,7 +182,7 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
     )
     {
         TypeDescriptor typeDescriptor = type.GetTypeDescriptor(typeDescriptorRegistry);
-        
+
         // string cEnumTypeName = typeDescriptor.GetTypeName(CodeLanguage.C, false);
         string kotlinEnumTypeName = typeDescriptor.GetTypeName(CodeLanguage.Kotlin, false);
 
@@ -172,22 +190,24 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
         TypeDescriptor underlyingTypeDescriptor = underlyingType.GetTypeDescriptor(typeDescriptorRegistry);
 
         string underlyingTypeName = underlyingTypeDescriptor.GetTypeName(CodeLanguage.KotlinJNA, false);
-        
+
         // bool isFlagsEnum = type.IsDefined(typeof(FlagsAttribute), false);
-        
+
         var caseNames = type.GetEnumNames();
         var values = type.GetEnumValuesAsUnderlyingType() ?? throw new Exception("No enum values");
 
-        if (caseNames.Length != values.Length) {
+        if (caseNames.Length != values.Length)
+        {
             throw new Exception("The number of case names in an enum must match the number of values");
         }
 
         List<KotlinEnumClassCase> enumCases = new();
 
-        for (int i = 0; i < caseNames.Length; i++) {
+        for (int i = 0; i < caseNames.Length; i++)
+        {
             string caseName = caseNames[i]
                 .ToUpper();
-            
+
             var value = values.GetValue(i) ?? throw new Exception("No enum value for case");
             var valueType = value.GetType();
 
@@ -197,18 +217,25 @@ public partial class KotlinTypeSyntaxWriter: IKotlinSyntaxWriter, ITypeSyntaxWri
                 valueType == typeof(byte) ||
                 valueType == typeof(ushort) ||
                 valueType == typeof(uint) ||
-                valueType == typeof(ulong)) {
+                valueType == typeof(ulong))
+            {
                 enumCases.Add(new KotlinEnumClassCase(caseName, value.ToString()!));
-            // else if (valueType == typeof(byte) ||
-            //          valueType == typeof(ushort) ||
-            //          valueType == typeof(uint) ||
-            //          valueType == typeof(ulong))
-            //     enumCases.Add($"{caseName}({value}u)");
-            } else if (valueType == typeof(double)) {
+                // else if (valueType == typeof(byte) ||
+                //          valueType == typeof(ushort) ||
+                //          valueType == typeof(uint) ||
+                //          valueType == typeof(ulong))
+                //     enumCases.Add($"{caseName}({value}u)");
+            }
+            else if (valueType == typeof(double))
+            {
                 enumCases.Add(new KotlinEnumClassCase(caseName, $"{value}.toDouble()"));
-            } else if (valueType == typeof(float)) {
+            }
+            else if (valueType == typeof(float))
+            {
                 enumCases.Add(new KotlinEnumClassCase(caseName, $"{value}.toFloat()"));
-            } else {
+            }
+            else
+            {
                 throw new Exception($"Unknown underlying enum type: {underlyingType}");
             }
         }
@@ -291,117 +318,140 @@ public val value: {{underlyingTypeName}}
     )
     {
         // TypeDescriptorRegistry typeDescriptorRegistry = TypeDescriptorRegistry.Shared;
-        
+
         Result cSharpUnmanagedResult = state.CSharpUnmanagedResult ?? throw new Exception("No CSharpUnmanagedResult provided");
         // Result cResult = state.CResult ?? throw new Exception("No CResult provided");
-        
+
         if (type.IsPointer ||
             type.IsByRef ||
             type.IsGenericParameter ||
             type.IsGenericMethodParameter ||
             type.IsGenericTypeParameter ||
-            type.IsConstructedGenericType) {
+            type.IsConstructedGenericType)
+        {
             // No need to generate Kotlin code for those kinds of types
 
             return string.Empty;
         }
 
         TypeInfo? typeInfo = type as TypeInfo;
-        var isAdapter = false;
-        if (typeInfo != null) 
-        {
-            var declaredFields = typeInfo.DeclaredFields;
-            var delegates = declaredFields.Where(field => field.FieldType.BaseType == typeof(System.MulticastDelegate));
-            isAdapter = delegates.Count() > 0;
-            if (delegates.Count() > 0) 
-            {
-                foreach (var del in delegates) 
-                {
-                    Console.WriteLine("has delegates as base type" + del.FieldType.ToString());
-                }
-            }
-        }
-        
+        var delegates = typeInfo?.DeclaredFields.Where(field => field.FieldType.BaseType == typeof(System.MulticastDelegate));
+        var isAdapter = delegates?.Count() > 0;
+        var isDelegate = typeInfo?.IsDelegate() ?? false;
+
         var cSharpMembers = cSharpUnmanagedResult.GeneratedTypes[type];
         // var cMembers = cResult.GeneratedTypes[type];
-        
-        if (isAdapter)
-        {
-
-        } 
-        else 
-        {
         HashSet<MemberInfo> generatedMembers = new();
-        
         KotlinCodeBuilder sbMembers = new();
 
-        foreach (var cSharpMember in cSharpMembers) {
-            var member = cSharpMember.Member;
-
-            if (member is not null &&
-                generatedMembers.Contains(member)) {
-                continue;
-            }
-            
-            var memberKind = cSharpMember.MemberKind;
-            var memberType = member?.MemberType;
-
-            IKotlinSyntaxWriter? syntaxWriter = GetSyntaxWriter(
-                memberKind,
-                memberType ?? MemberTypes.Custom
-            );
-            
-            if (syntaxWriter == null) {
-                if (Settings.EmitUnsupported) {
-                    sbMembers.AppendLine(Builder.SingleLineComment($"TODO: Unsupported Member Type \"{memberType}\"").ToString());
-                }
-                    
-                continue;
-            }
-
-            object? target;
-
-            if (syntaxWriter is IDestructorSyntaxWriter) {
-                target = type;
-            } else if (syntaxWriter is ITypeOfSyntaxWriter) {
-                target = type;
-            } else {
-                target = member;
-            }
-
-            if (target == null) {
-                throw new Exception("No target");
-            }
-
-            // if ((interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.Protocol || interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ProtocolExtensionForDefaultImplementations) &&
-            //     (syntaxWriter is IDestructorSyntaxWriter || syntaxWriter is ITypeOfSyntaxWriter)) {
-            //     continue;
-            // }
-            //
-            // if (interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ImplementationClass &&
-            //     syntaxWriter is not IDestructorSyntaxWriter &&
-            //     syntaxWriter is not ITypeOfSyntaxWriter) {
-            //     continue;
-            // }
-
-            string memberCode = syntaxWriter.Write(
-                target,
-                state,
-                configuration
-            );
-
-            sbMembers.AppendLine(memberCode);
-
-            if (member is not null) {
-                generatedMembers.Add(member);
+        if (isDelegate)
+        {
+            Console.WriteLine($"Writing delegate interface for {typeInfo}");
+            string name = type.CTypeName();
+            var declaringTypeName = type.DeclaringType?.CTypeName();
+            var method = type.GetDelegateInvokeMethod();
+            if (declaringTypeName != null && method != null)
+            {
+                var funcName = name.Replace($"{declaringTypeName}_", "");
+                var parameters = KotlinMethodSyntaxWriter.WriteJNAParameters(
+                    MemberKind.Method, 
+                    null, 
+                    Nullability.NonNullable,
+                    false,
+                    true,
+                    type,
+                    method.GetParameters(),
+                    false,
+                    [],
+                    TypeDescriptorRegistry.Shared,
+                    CodeLanguage.KotlinJNA);
+                return $$"""
+                    interface {{name}} : Callback {
+                        fun {{funcName}}({{parameters}}) : {{method.ReturnType.CTypeName()}}
+                    }
+                """;
             }
         }
+        else
+        {
+            foreach (var cSharpMember in cSharpMembers)
+            {
+                var member = cSharpMember.Member;
+
+                if (member is not null &&
+                    generatedMembers.Contains(member))
+                {
+                    continue;
+                }
+
+                var memberKind = cSharpMember.MemberKind;
+                var memberType = member?.MemberType;
+
+                IKotlinSyntaxWriter? syntaxWriter = GetSyntaxWriter(
+                    memberKind,
+                    memberType ?? MemberTypes.Custom
+                );
+
+                if (syntaxWriter == null)
+                {
+                    if (Settings.EmitUnsupported)
+                    {
+                        sbMembers.AppendLine(Builder.SingleLineComment($"TODO: Unsupported Member Type \"{memberType}\"").ToString());
+                    }
+
+                    continue;
+                }
+
+                object? target;
+
+                if (syntaxWriter is IDestructorSyntaxWriter)
+                {
+                    target = type;
+                }
+                else if (syntaxWriter is ITypeOfSyntaxWriter)
+                {
+                    target = type;
+                }
+                else
+                {
+                    target = member;
+                }
+
+                if (target == null)
+                {
+                    throw new Exception("No target");
+                }
+
+                // if ((interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.Protocol || interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ProtocolExtensionForDefaultImplementations) &&
+                //     (syntaxWriter is IDestructorSyntaxWriter || syntaxWriter is ITypeOfSyntaxWriter)) {
+                //     continue;
+                // }
+                //
+                // if (interfaceGenerationPhase == SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ImplementationClass &&
+                //     syntaxWriter is not IDestructorSyntaxWriter &&
+                //     syntaxWriter is not ITypeOfSyntaxWriter) {
+                //     continue;
+                // }
+
+                string memberCode = syntaxWriter.Write(
+                    target,
+                    state,
+                    configuration
+                );
+
+                sbMembers.AppendLine(memberCode);
+
+                if (member is not null)
+                {
+                    generatedMembers.Add(member);
+                }
+            }
 
             string membersCode = sbMembers.ToString()
                 .IndentAllLines(1);
 
             Console.WriteLine("JNA" + membersCode);
-        
+
             return membersCode;
         }
         return "";
@@ -431,18 +481,19 @@ public val value: {{underlyingTypeName}}
     )
     {
         // TODO: This was copied from the Swift version of the same method and modified
-        
+
         TypeDescriptorRegistry typeDescriptorRegistry = TypeDescriptorRegistry.Shared;
-        
+
         Result cSharpUnmanagedResult = state.CSharpUnmanagedResult ?? throw new Exception("No CSharpUnmanagedResult provided");
         Result cResult = state.CResult ?? throw new Exception("No CResult provided");
-        
+
         if (type.IsPointer ||
             type.IsByRef ||
             type.IsGenericParameter ||
             type.IsGenericMethodParameter ||
             type.IsGenericTypeParameter ||
-            type.IsConstructedGenericType) {
+            type.IsConstructedGenericType)
+        {
             // No need to generate Kotlin code for those kinds of types
 
             return string.Empty;
@@ -455,33 +506,37 @@ public val value: {{underlyingTypeName}}
             arrayRank < 2) // TODO: For multi-dimensional arrays we currently don't use DNArray
         {
             // No need to generate Kotlin code for single-dimensional arrays
-            
+
             return string.Empty;
         }
 
-        if (KotlinSharedSettings.IsUnsupportedTypeOrDerivedByUnsupportedType(type)) {
+        if (KotlinSharedSettings.IsUnsupportedTypeOrDerivedByUnsupportedType(type))
+        {
             // No need to generate Kotlin code for single-dimensional arrays
-            
+
             return "// TODO: Unsupported type or derived type of unsupported type";
         }
 
         var cSharpMembers = cSharpUnmanagedResult.GeneratedTypes[type];
         // var cMembers = cResult.GeneratedTypes[type];
-        
+
         bool isInterface = type.IsInterface;
         bool isPrimitive = type.IsPrimitive;
         // bool isArray = type.IsArray;
-        
+
         KotlinCodeBuilder sb = new();
 
         // string typeName = type.Name;
         string fullTypeName = type.GetFullNameOrName();
 
         string kotlinTypeName;
-        
-        if (isPrimitive) {
+
+        if (isPrimitive)
+        {
             kotlinTypeName = type.CTypeName();
-        } else {
+        }
+        else
+        {
             TypeDescriptor typeDescriptor = type.GetTypeDescriptor(typeDescriptorRegistry);
             kotlinTypeName = typeDescriptor.GetTypeName(CodeLanguage.Kotlin, false);
         }
@@ -489,57 +544,65 @@ public val value: {{underlyingTypeName}}
         string? arrayMutableCollectionExtension = null;
         string? interfaceImplTypeDecl = null;
 
-        if (writeTypeDefinition) {
+        if (writeTypeDefinition)
+        {
             Type? baseType = type.BaseType;
             TypeDescriptor? baseTypeDescriptor = baseType?.GetTypeDescriptor(typeDescriptorRegistry);
 
             string? kotlinBaseTypeName = baseTypeDescriptor?.GetTypeName(CodeLanguage.Kotlin, false);
 
             List<Type> interfaceTypes = new();
-            
-            if (isInterface) {
+
+            if (isInterface)
+            {
                 interfaceTypes.Add(type);
             }
-            
+
             interfaceTypes.AddRange(type.GetInterfaces());
 
             // Remove all unsupported interfaces
             interfaceTypes.RemoveAll(t => KotlinSharedSettings.IsUnsupportedInterface(t));
-            
+
             List<string> kotlinInterfaceTypeNames = new();
             List<string> kotlinInterfaceTypeNamesForInterfaceImpl = new();
-            
-            foreach (var interfaceType in interfaceTypes) {
+
+            foreach (var interfaceType in interfaceTypes)
+            {
                 if (!cSharpUnmanagedResult.GeneratedTypes.ContainsKey(interfaceType) ||
-                    !cResult.GeneratedTypes.ContainsKey(interfaceType)) {
+                    !cResult.GeneratedTypes.ContainsKey(interfaceType))
+                {
                     continue;
                 }
-            
-                if (!type.IsInterface) {
-                    if (type.DoesAnyBaseTypeImplementInterface(interfaceType)) {
+
+                if (!type.IsInterface)
+                {
+                    if (type.DoesAnyBaseTypeImplementInterface(interfaceType))
+                    {
                         continue;
                     }
                 }
-                
+
                 // TODO: Generics
-                if (interfaceType.IsGenericInAnyWay(true)) {
+                if (interfaceType.IsGenericInAnyWay(true))
+                {
                     continue;
                 }
-                
+
                 TypeDescriptor interfaceTypeDescriptor = interfaceType.GetTypeDescriptor(typeDescriptorRegistry);
-            
+
                 string kotlinInterfaceTypeName = interfaceTypeDescriptor.GetTypeName(
                     CodeLanguage.Kotlin,
                     false
                 );
-                
-                if (interfaceType != type) {
+
+                if (interfaceType != type)
+                {
                     kotlinInterfaceTypeNames.Add(kotlinInterfaceTypeName);
                 }
-                
+
                 kotlinInterfaceTypeNamesForInterfaceImpl.Add(kotlinInterfaceTypeName);
             }
-            
+
             string interfaceConformancesString = string.Join(", ", kotlinInterfaceTypeNames);
             string interfaceConformancesStringForInterfaceImpl = string.Join(", ", kotlinInterfaceTypeNamesForInterfaceImpl);
 
@@ -570,8 +633,9 @@ public val value: {{underlyingTypeName}}
             //         .ToString();
             // } else {
             string fullKotlinTypeName = $"{kotlinTypeName} /* {fullTypeName} */";
-            
-            if (isInterface) {
+
+            if (isInterface)
+            {
                 typeDecl = Builder.Interface(fullKotlinTypeName)
                     .BaseTypeName(kotlinBaseTypeName ?? "IDNObject")
                     .InterfaceConformance(interfaceConformancesString)
@@ -579,9 +643,9 @@ public val value: {{underlyingTypeName}}
                     .Implementation()
                     .Build()
                     .ToString();
-                
+
                 string fullKotlinInterfaceImplTypeName = $"{kotlinTypeName}_DNInterface /* {fullTypeName} */";
-                
+
                 interfaceImplTypeDecl = Builder.Class(fullKotlinInterfaceImplTypeName)
                     .BaseTypeName(kotlinBaseTypeName ?? "DNObject")
                     .InterfaceConformance(interfaceConformancesStringForInterfaceImpl)
@@ -595,7 +659,9 @@ public val value: {{underlyingTypeName}}
                     .Implementation()
                     .Build()
                     .ToString();
-            } else {
+            }
+            else
+            {
                 typeDecl = Builder.Class(fullKotlinTypeName)
                     .BaseTypeName(kotlinBaseTypeName ?? "DNObject")
                     .InterfaceConformance(interfaceConformancesString)
@@ -611,11 +677,12 @@ public val value: {{underlyingTypeName}}
                     .ToString();
             }
             // }
-            
+
             var typeDocumentationComment = type.GetDocumentation()
                 ?.GetFormattedDocumentationComment();
-            
-            if (!string.IsNullOrEmpty(typeDocumentationComment)) {
+
+            if (!string.IsNullOrEmpty(typeDocumentationComment))
+            {
                 sb.AppendLine(typeDocumentationComment);
             }
 
@@ -625,145 +692,145 @@ public val value: {{underlyingTypeName}}
             // if (interfaceGenerationPhase != SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.Protocol &&
             //     interfaceGenerationPhase != SwiftSyntaxWriterConfiguration.InterfaceGenerationPhases.ProtocolExtensionForDefaultImplementations) {
             // TODO: Mucho stuff
-//                 string typeNameDecl = Builder.GetOnlyProperty("typeName", "String")
-//                     .Public()
-//                     .Class()
-//                     .Override()
-//                     .Implementation($"\"{typeName}\"")
-//                     .ToIndentedString(1);
-//     
-//                 string fullTypeNameDecl = Builder.GetOnlyProperty("fullTypeName", "String")
-//                     .Public()
-//                     .Class()
-//                     .Override()
-//                     .Implementation($"\"{fullTypeName}\"")
-//                     .ToIndentedString(1);
-//                 
-//                 sb.AppendLine(typeNameDecl);
-//                 sb.AppendLine();
-//                 
-//                 sb.AppendLine(fullTypeNameDecl);
-//                 sb.AppendLine();
-//                 
-//                 if (isArray) {
-//                     var elementType = type.GetElementType();
-//
-//                     if (elementType is not null) {
-//                         string swiftElementTypeName;
-//         
-//                         if (elementType.IsPrimitive) {
-//                             swiftElementTypeName = elementType.CTypeName();            
-//                         } else {
-//                             TypeDescriptor typeDescriptor = elementType.GetTypeDescriptor(typeDescriptorRegistry);
-//                             swiftElementTypeName = typeDescriptor.GetTypeName(CodeLanguage.Swift, false);
-//                         }
-//                         
-//                         string elementTypeDecl = Builder.GetOnlyProperty("elementType", "System_Type")
-//                             .Public()
-//                             .Class()
-//                             .Implementation($"{swiftElementTypeName}.typeOf")
-//                             .ToIndentedString(1);
-//                         
-//                         sb.AppendLine("/// The element type of the System.Array".IndentAllLines(1));
-//                         sb.AppendLine(elementTypeDecl);
-//                         sb.AppendLine();
-//                         
-//                         string emptyArrayInitializerImpl = $$"""
-// let elementType = {{kotlinTypeName}}.elementType
-// let elementTypeC = elementType.__handle
-//
-// var __exceptionC: System_Exception_t?
-//
-// let newArrayC = System_Array_CreateInstance(elementTypeC, 0, &__exceptionC)
-//
-// if let __exceptionC {
-//     let __exception = System_Exception(handle: __exceptionC)
-//     let __error = __exception.error
-//     
-//     throw __error
-// }
-//
-// self.init(handle: newArrayC)
-// """;
-//                         
-//                         string emptyArrayInitializer = Builder.Initializer()
-//                             .Public()
-//                             .Convenience()
-//                             .Throws()
-//                             .Implementation(emptyArrayInitializerImpl)
-//                             .ToIndentedString(1);
-//
-//                         sb.AppendLine($"/// Creates an empty {type.GetFullNameOrName()}".IndentAllLines(1));
-//                         sb.AppendLine(emptyArrayInitializer);
-//                         sb.AppendLine();
-//                         
-//                         string arrayInitializerImpl = $$"""
-//  let elementType = {{kotlinTypeName}}.elementType
-//  let elementTypeC = elementType.__handle
-//
-//  var __exceptionC: System_Exception_t?
-//  
-//  let newArrayC = System_Array_CreateInstance(elementTypeC, length, &__exceptionC)
-//  
-//  if let __exceptionC {
-//      let __exception = System_Exception(handle: __exceptionC)
-//      let __error = __exception.error
-//      
-//      throw __error
-//  }
-//
-//  self.init(handle: newArrayC)
-//  """;
-//                         
-//                         string arrayInitializer = Builder.Initializer()
-//                             .Public()
-//                             .Convenience()
-//                             .Throws()
-//                             .Parameters("length: Int32")
-//                             .Implementation(arrayInitializerImpl)
-//                             .ToIndentedString(1);
-//
-//                         sb.AppendLine($"/// Creates an {type.GetFullNameOrName()} with the specified length".IndentAllLines(1));
-//                         sb.AppendLine(arrayInitializer);
-//                         sb.AppendLine();
-//                         
-//                         string arrayMutableCollectionConformanceImpl = $$"""
-// public typealias Element = {{swiftElementTypeName}}?
-//
-// public subscript(position: Index) -> Element {
-//     get {
-//         assert(position >= startIndex && position < endIndex, "Out of bounds")
-//         
-//         do {
-//             guard let element = try self.getValue(position) else {
-//                 return nil
-//             }
-//             
-//             return try element.castTo()
-//         } catch {
-//             fatalError("An exception was thrown while calling System.Array.GetValue: \(error.localizedDescription)")
-//         }
-//     }
-//     set {
-//         assert(position >= startIndex && position < endIndex, "Out of bounds")
-//
-//         do {
-//             try self.setValue(newValue, position)
-//         } catch {
-//             fatalError("An exception was thrown while calling System.Array.SetValue: \(error.localizedDescription)")
-//         }
-//     }
-// }
-// """;
-//
-//                         arrayMutableCollectionExtension = Builder.Extension(kotlinTypeName)
-//                             .ProtocolConformance("MutableCollection")
-//                             .Implementation(arrayMutableCollectionConformanceImpl)
-//                             .ToString();
-//                     }
-//                 }
-//             }
-        // TODO: Interfaces
+            //                 string typeNameDecl = Builder.GetOnlyProperty("typeName", "String")
+            //                     .Public()
+            //                     .Class()
+            //                     .Override()
+            //                     .Implementation($"\"{typeName}\"")
+            //                     .ToIndentedString(1);
+            //     
+            //                 string fullTypeNameDecl = Builder.GetOnlyProperty("fullTypeName", "String")
+            //                     .Public()
+            //                     .Class()
+            //                     .Override()
+            //                     .Implementation($"\"{fullTypeName}\"")
+            //                     .ToIndentedString(1);
+            //                 
+            //                 sb.AppendLine(typeNameDecl);
+            //                 sb.AppendLine();
+            //                 
+            //                 sb.AppendLine(fullTypeNameDecl);
+            //                 sb.AppendLine();
+            //                 
+            //                 if (isArray) {
+            //                     var elementType = type.GetElementType();
+            //
+            //                     if (elementType is not null) {
+            //                         string swiftElementTypeName;
+            //         
+            //                         if (elementType.IsPrimitive) {
+            //                             swiftElementTypeName = elementType.CTypeName();            
+            //                         } else {
+            //                             TypeDescriptor typeDescriptor = elementType.GetTypeDescriptor(typeDescriptorRegistry);
+            //                             swiftElementTypeName = typeDescriptor.GetTypeName(CodeLanguage.Swift, false);
+            //                         }
+            //                         
+            //                         string elementTypeDecl = Builder.GetOnlyProperty("elementType", "System_Type")
+            //                             .Public()
+            //                             .Class()
+            //                             .Implementation($"{swiftElementTypeName}.typeOf")
+            //                             .ToIndentedString(1);
+            //                         
+            //                         sb.AppendLine("/// The element type of the System.Array".IndentAllLines(1));
+            //                         sb.AppendLine(elementTypeDecl);
+            //                         sb.AppendLine();
+            //                         
+            //                         string emptyArrayInitializerImpl = $$"""
+            // let elementType = {{kotlinTypeName}}.elementType
+            // let elementTypeC = elementType.__handle
+            //
+            // var __exceptionC: System_Exception_t?
+            //
+            // let newArrayC = System_Array_CreateInstance(elementTypeC, 0, &__exceptionC)
+            //
+            // if let __exceptionC {
+            //     let __exception = System_Exception(handle: __exceptionC)
+            //     let __error = __exception.error
+            //     
+            //     throw __error
+            // }
+            //
+            // self.init(handle: newArrayC)
+            // """;
+            //                         
+            //                         string emptyArrayInitializer = Builder.Initializer()
+            //                             .Public()
+            //                             .Convenience()
+            //                             .Throws()
+            //                             .Implementation(emptyArrayInitializerImpl)
+            //                             .ToIndentedString(1);
+            //
+            //                         sb.AppendLine($"/// Creates an empty {type.GetFullNameOrName()}".IndentAllLines(1));
+            //                         sb.AppendLine(emptyArrayInitializer);
+            //                         sb.AppendLine();
+            //                         
+            //                         string arrayInitializerImpl = $$"""
+            //  let elementType = {{kotlinTypeName}}.elementType
+            //  let elementTypeC = elementType.__handle
+            //
+            //  var __exceptionC: System_Exception_t?
+            //  
+            //  let newArrayC = System_Array_CreateInstance(elementTypeC, length, &__exceptionC)
+            //  
+            //  if let __exceptionC {
+            //      let __exception = System_Exception(handle: __exceptionC)
+            //      let __error = __exception.error
+            //      
+            //      throw __error
+            //  }
+            //
+            //  self.init(handle: newArrayC)
+            //  """;
+            //                         
+            //                         string arrayInitializer = Builder.Initializer()
+            //                             .Public()
+            //                             .Convenience()
+            //                             .Throws()
+            //                             .Parameters("length: Int32")
+            //                             .Implementation(arrayInitializerImpl)
+            //                             .ToIndentedString(1);
+            //
+            //                         sb.AppendLine($"/// Creates an {type.GetFullNameOrName()} with the specified length".IndentAllLines(1));
+            //                         sb.AppendLine(arrayInitializer);
+            //                         sb.AppendLine();
+            //                         
+            //                         string arrayMutableCollectionConformanceImpl = $$"""
+            // public typealias Element = {{swiftElementTypeName}}?
+            //
+            // public subscript(position: Index) -> Element {
+            //     get {
+            //         assert(position >= startIndex && position < endIndex, "Out of bounds")
+            //         
+            //         do {
+            //             guard let element = try self.getValue(position) else {
+            //                 return nil
+            //             }
+            //             
+            //             return try element.castTo()
+            //         } catch {
+            //             fatalError("An exception was thrown while calling System.Array.GetValue: \(error.localizedDescription)")
+            //         }
+            //     }
+            //     set {
+            //         assert(position >= startIndex && position < endIndex, "Out of bounds")
+            //
+            //         do {
+            //             try self.setValue(newValue, position)
+            //         } catch {
+            //             fatalError("An exception was thrown while calling System.Array.SetValue: \(error.localizedDescription)")
+            //         }
+            //     }
+            // }
+            // """;
+            //
+            //                         arrayMutableCollectionExtension = Builder.Extension(kotlinTypeName)
+            //                             .ProtocolConformance("MutableCollection")
+            //                             .Implementation(arrayMutableCollectionConformanceImpl)
+            //                             .ToString();
+            //                     }
+            //                 }
+            //             }
+            // TODO: Interfaces
         }
 
         HashSet<MemberInfo> generatedMembers = new();
@@ -772,7 +839,7 @@ public val value: {{underlyingTypeName}}
         KotlinCodeBuilder sbStaticMembers = new();
 
         string? destructorCodeForInterfaceImpl = null;
-        
+
         // Find members that are overloads that only differ by array element type. Kotlin uses type erasure on generic types so if we don't filter out such methods, we end up with conflicting overloads.
         // key: overloads to ignore; value: overload that 'won' the overload conflict race
         var overloadMethodsToIgnore = new Dictionary<MethodInfo, MethodInfo>();
@@ -784,25 +851,29 @@ public val value: {{underlyingTypeName}}
 
         var methodsWithArrayOverloadConflicts = GetKotlinArrayParameterOverloadConflicts(methodInfos);
 
-        foreach (var (m1, m2, _) in methodsWithArrayOverloadConflicts) {
+        foreach (var (m1, m2, _) in methodsWithArrayOverloadConflicts)
+        {
             overloadMethodsToIgnore.TryAdd(m2, m1);
         }
 
-        foreach (var cSharpMember in cSharpMembers) {
+        foreach (var cSharpMember in cSharpMembers)
+        {
             var member = cSharpMember.Member;
 
             if (member is not null &&
-                generatedMembers.Contains(member)) {
+                generatedMembers.Contains(member))
+            {
                 continue;
             }
-            
+
             if (member is MethodInfo methodInfo &&
-                overloadMethodsToIgnore.ContainsKey(methodInfo)) {
+                overloadMethodsToIgnore.ContainsKey(methodInfo))
+            {
                 sbInstanceMembers.AppendLine(Builder.SingleLineComment($"TODO: Conflicting overload that differs only by array element type was ignored \"{methodInfo.ToString() ?? methodInfo.Name}\"").ToString());
-                
+
                 continue;
             }
-            
+
             var memberKind = cSharpMember.MemberKind;
             var memberType = member?.MemberType;
 
@@ -810,26 +881,34 @@ public val value: {{underlyingTypeName}}
                 memberKind,
                 memberType ?? MemberTypes.Custom
             );
-            
-            if (syntaxWriter == null) {
-                if (Settings.EmitUnsupported) {
+
+            if (syntaxWriter == null)
+            {
+                if (Settings.EmitUnsupported)
+                {
                     sbInstanceMembers.AppendLine(Builder.SingleLineComment($"TODO: Unsupported Member Type \"{memberType}\"").ToString());
                 }
-                    
+
                 continue;
             }
 
             object? target;
 
-            if (syntaxWriter is IDestructorSyntaxWriter) {
+            if (syntaxWriter is IDestructorSyntaxWriter)
+            {
                 target = type;
-            } else if (syntaxWriter is ITypeOfSyntaxWriter) {
+            }
+            else if (syntaxWriter is ITypeOfSyntaxWriter)
+            {
                 target = type;
-            } else {
+            }
+            else
+            {
                 target = member;
             }
 
-            if (target == null) {
+            if (target == null)
+            {
                 throw new Exception("No target");
             }
 
@@ -838,38 +917,41 @@ public val value: {{underlyingTypeName}}
                 state,
                 configuration
             );
-            
+
             if (isInterface &&
-                syntaxWriter is IDestructorSyntaxWriter) {
+                syntaxWriter is IDestructorSyntaxWriter)
+            {
                 destructorCodeForInterfaceImpl = memberCode;
-                
+
                 continue;
             }
-            
-            bool isStatic = cSharpMember.MemberKind == MemberKind.TypeOf || 
+
+            bool isStatic = cSharpMember.MemberKind == MemberKind.TypeOf ||
                             cSharpMember.MemberKind == MemberKind.Constructor ||
                             (cSharpMember.Member?.IsStatic() ?? false);
 
-            var sbMembers = isStatic 
+            var sbMembers = isStatic
                 ? sbStaticMembers
                 : sbInstanceMembers;
 
             sbMembers.AppendLine(memberCode);
 
-            if (member is not null) {
+            if (member is not null)
+            {
                 generatedMembers.Add(member);
             }
         }
 
         #region Equals Function Override
         // TODO: We want this for interfaces as well, but only once they're fully supported
-        if (!type.IsInterface) {
+        if (!type.IsInterface)
+        {
             // NOTE: As per https://kotlinlang.org/docs/operator-overloading.html#equality-and-inequality-operators identity checks (ie. === and !===) cannot be overridden so we can only implement equals here. 
             var equalsFunParameters = Builder.FunSignatureParameters()
                 .AddParameter(new("other", "Any?"))
                 .Build()
                 .ToString();
-    
+
             var equalsFunImpl = /*lang=Kt*/"""
     val otherSystemObject = other as? System_Object
     
@@ -883,7 +965,7 @@ public val value: {{underlyingTypeName}}
     
     return false
     """;
-    
+
             var equalsFun = Builder.Fun("equals")
                 .Override()
                 .ReturnTypeName("Boolean")
@@ -891,7 +973,7 @@ public val value: {{underlyingTypeName}}
                 .Implementation(equalsFunImpl)
                 .Build()
                 .ToString();
-    
+
             sbInstanceMembers.AppendLine(equalsFun);
         }
         #endregion Equals Function Override
@@ -900,37 +982,45 @@ public val value: {{underlyingTypeName}}
         var staticMembersCode = sbStaticMembers.ToString();
 
         string companionObjectCode;
-        
-        if (!string.IsNullOrEmpty(staticMembersCode)) {
+
+        if (!string.IsNullOrEmpty(staticMembersCode))
+        {
             companionObjectCode = "companion object {\n" + staticMembersCode.IndentAllLines(1) + "\n}";
-        } else {
+        }
+        else
+        {
             companionObjectCode = string.Empty;
         }
-        
+
         string membersCode = companionObjectCode + "\n\n" + instanceMembersCode;
 
-        if (writeTypeDefinition) {
+        if (writeTypeDefinition)
+        {
             membersCode = membersCode.IndentAllLines(1);
         }
-        
+
         sb.AppendLine(membersCode);
 
-        if (writeTypeDefinition) {
+        if (writeTypeDefinition)
+        {
             sb.AppendLine("}");
 
             if (isInterface &&
-                !string.IsNullOrEmpty(interfaceImplTypeDecl)) {
+                !string.IsNullOrEmpty(interfaceImplTypeDecl))
+            {
                 sb.AppendLine(interfaceImplTypeDecl + "{");
 
-                if (!string.IsNullOrEmpty(destructorCodeForInterfaceImpl)) {
+                if (!string.IsNullOrEmpty(destructorCodeForInterfaceImpl))
+                {
                     sb.AppendLine(destructorCodeForInterfaceImpl.IndentAllLines(1));
                 }
-                
+
                 sb.AppendLine("}");
             }
         }
 
-        if (!string.IsNullOrEmpty(arrayMutableCollectionExtension)) {
+        if (!string.IsNullOrEmpty(arrayMutableCollectionExtension))
+        {
             sb.AppendLine();
             sb.AppendLine(arrayMutableCollectionExtension);
         }
@@ -938,7 +1028,7 @@ public val value: {{underlyingTypeName}}
         return sb.ToString();
     }
     #endregion Kotlin
-    
+
     #region Type Extensions
     public string WriteTypeExtensionMethods(
         Type extendedType,
@@ -951,7 +1041,7 @@ public val value: {{underlyingTypeName}}
 
         // TODO: Make optional extension methods work
         string? codeForOptional = null;
-        
+
         /* if (!extendedType.IsEnum &&
             !extendedType.IsStruct()) {
             codeForOptional = GetTypeExtensionsCode(
@@ -965,7 +1055,7 @@ public val value: {{underlyingTypeName}}
         } else {
             codeForOptional = null;
         } */
-            
+
         string codeForNonOptional = GetTypeExtensionsCode(
             extendedType,
             false,
@@ -977,18 +1067,19 @@ public val value: {{underlyingTypeName}}
 
         KotlinCodeBuilder sb = new();
 
-        if (codeForOptional is not null) {
+        if (codeForOptional is not null)
+        {
             sb.AppendLine(codeForOptional);
             sb.AppendLine();
         }
-        
+
         sb.AppendLine(codeForNonOptional);
 
         string code = sb.ToString();
 
         return code;
     }
-    
+
     private string GetTypeExtensionsCode(
         Type extendedType,
         bool isExtendedTypeOptional,
@@ -998,7 +1089,8 @@ public val value: {{underlyingTypeName}}
         TypeDescriptorRegistry typeDescriptorRegistry
     )
     {
-        if (generatedMembers.Count <= 0) {
+        if (generatedMembers.Count <= 0)
+        {
             return string.Empty;
         }
 
@@ -1007,7 +1099,7 @@ public val value: {{underlyingTypeName}}
             : KotlinSyntaxWriterConfiguration.ExtensionMethodKinds.NonOptional;
 
         configuration.ExtensionMethodType = extendedType;
-        
+
         TypeDescriptor extendedTypeDescriptor = extendedType.GetTypeDescriptor(typeDescriptorRegistry);
         string extendedTypeKotlinName = extendedTypeDescriptor.GetTypeName(CodeLanguage.Kotlin, false);
 
@@ -1016,22 +1108,25 @@ public val value: {{underlyingTypeName}}
             : string.Empty;
 
         KotlinCodeBuilder sbMembers = new();
-        
-        foreach (GeneratedMember kotlinGeneratedMember in generatedMembers) {
+
+        foreach (GeneratedMember kotlinGeneratedMember in generatedMembers)
+        {
             var methodInfo = kotlinGeneratedMember.Member as MethodInfo;
 
-            if (methodInfo is null) {
+            if (methodInfo is null)
+            {
                 continue;
             }
-            
+
             var extendedTypeName = $"{extendedTypeKotlinName}{extendedTypeOptionality}";
-            
+
             var methodSyntaxWriter = GetSyntaxWriter(
                 kotlinGeneratedMember.MemberKind,
                 MemberTypes.Method
             ) as IMethodSyntaxWriter;
 
-            if (methodSyntaxWriter is null) {
+            if (methodSyntaxWriter is null)
+            {
                 continue;
             }
 
@@ -1043,7 +1138,7 @@ public val value: {{underlyingTypeName}}
 
             sbMembers.AppendLine(extensionMethodCode);
             sbMembers.AppendLine();
-            
+
             // TODO
             // string extensionMethod = KotlinMethodSyntaxWriter.WriteExtensionMethod(
             //     kotlinGeneratedMember,
@@ -1056,11 +1151,11 @@ public val value: {{underlyingTypeName}}
 
             // sbMembers.AppendLine($"// TODO: Extension method {extendedTypeName}.{kotlinGeneratedMember.GetGeneratedName(CodeLanguage.Kotlin)}");
         }
-        
+
         // string code = Builder.Extension($"{extendedTypeKotlinName}{extendedTypeOptionality}")
         //     .Implementation(sbMembers.ToString())
         //     .ToString();
-        
+
         return sbMembers.ToString();
     }
     #endregion Type Extensions
@@ -1071,9 +1166,12 @@ public val value: {{underlyingTypeName}}
         MemberTypes memberType
     )
     {
-        if (memberKind == MemberKind.Destructor) {
+        if (memberKind == MemberKind.Destructor)
+        {
             return m_destructorSyntaxWriter;
-        } else if (memberKind == MemberKind.TypeOf) {
+        }
+        else if (memberKind == MemberKind.TypeOf)
+        {
             return m_typeOfSyntaxWriter;
         }
 
