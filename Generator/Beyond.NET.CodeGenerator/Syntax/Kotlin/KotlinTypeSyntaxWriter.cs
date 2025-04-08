@@ -137,13 +137,7 @@ public partial class KotlinTypeSyntaxWriter : IKotlinSyntaxWriter, ITypeSyntaxWr
                     type,
                     typeDescriptorRegistry
                 );
-            } /*else if (type.IsDelegate() && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator) {
-                typeCode = WriteDelegateTypeDefs(
-                    kotlinConfiguration,
-                    type,
-                    state
-                );
-            } */
+            } 
             else if (ExperimentalFeatureFlags.EnableKotlinTypeGenerator)
             {
                 typeCode = WriteKotlinType(
@@ -344,15 +338,17 @@ public val value: {{underlyingTypeName}}
         HashSet<MemberInfo> generatedMembers = new();
         KotlinCodeBuilder sbMembers = new();
 
-        if (isDelegate)
+        if (isDelegate && ExperimentalFeatureFlags.EnableKotlinDelegateGenerator)
         {
             Console.WriteLine($"Writing delegate interface for {typeInfo}");
             string name = type.CTypeName();
-            var declaringTypeName = type.DeclaringType?.CTypeName();
+            var declaringTypeName = type.DeclaringType?.CTypeName() ?? "";
             var method = type.GetDelegateInvokeMethod();
-            if (declaringTypeName != null && method != null)
+            if (method != null)
             {
-                var funcName = name.Replace($"{declaringTypeName}_", "");
+                var funcName = declaringTypeName.Length > 0 ? 
+                    name.Replace($"{declaringTypeName}_", "") : 
+                    name;
                 var parameters = KotlinMethodSyntaxWriter.WriteJNAParameters(
                     MemberKind.Method, 
                     null, 
