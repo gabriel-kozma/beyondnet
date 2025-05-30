@@ -4,9 +4,9 @@ static class Program
 {
     public static int Main(string[] args)
     {
-        string? configFilePath = args.Length == 1
-            ? args[0]
-            : null;
+        string? configFilePath = "/Users/gabriel/Projects/GabrielKozma/mkflasher-swift/mkflasher-core/BeyondNetConfig-for-testing.json"; //args.Length == 1
+            // ? args[0]
+            // : null;
 
         if (string.IsNullOrEmpty(configFilePath)) {
             ShowUsage();

@@ -141,6 +141,14 @@ internal static class TypeExtensions
         return cTypeName;
     }
 
+    internal static string CTypeNameForReturnType(this Type type) {
+        var returnTypeName = type.CTypeName();
+
+        if (returnTypeName == "System_Void") return "";
+
+        return $": {returnTypeName}";
+    }
+
     internal static bool IsReferenceType(this Type type)
     {
         return !type.IsValueType;

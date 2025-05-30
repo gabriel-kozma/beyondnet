@@ -362,8 +362,8 @@ public val value: {{underlyingTypeName}}
                     TypeDescriptorRegistry.Shared,
                     CodeLanguage.KotlinJNA);
                     sbMembers.Append($$"""
-                    interface I{{name}} : Callback {
-                        fun {{funcName}}({{parameters}}) : {{method.ReturnType.CTypeName()}}
+                    public interface I{{name}} : Callback {
+                        public fun {{funcName}}({{parameters}}){{method.ReturnType.CTypeNameForReturnType()}}
                     }
                     """);
                     sbMembers.AppendLine();
