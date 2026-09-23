@@ -27,8 +27,8 @@ The generated C# code can then be compiled with .NET NativeAOT which allows the 
 
 - Make sure [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) is installed and on your path.
 - On macOS, make sure [Xcode](https://developer.apple.com/xcode/), the macOS and iOS SDKs and the Command Line Tools (`xcode-select --install`) are installed.
-- On Linux, make sure clang and zlib are installed
-- For Android builds, make sure the [Android NDK](https://developer.android.com/ndk/downloads) is installed and configured (see [Android Build Guide](docs/ANDROID_BUILD.md))
+- On Linux, make sure clang and zlib are installed.
+- For Android builds, make sure the [Android NDK](https://developer.android.com/ndk/downloads) is installed. Set either `ANDROID_NDK_HOME` to your NDK root, or `ANDROID_NDK_BIN_PATH` to the NDK llvm toolchain `bin` directory (typically `ndk_home/toolchains/llvm/prebuilt/<host-tag>/bin`).
 
 
 ### Generator Executable
@@ -54,9 +54,9 @@ The generated C# code can then be compiled with .NET NativeAOT which allows the 
 The generator always generates language bindings (C header file and optionally Swift and/or Kotlin source code files) but it can also be configured to automatically compile a native version of the target assembly.
 
 Automatic build support is available for:
-- **Apple platforms**: Generates an [XCFramework](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle) containing compiled binaries for macOS ARM64, macOS x64, iOS ARM64, iOS Simulator ARM64 and iOS Simulator x64. The generated XCFramework is ready to use and can just be dropped into an Xcode project.
-- **Android platforms**: Generates native libraries (.so files) for ARM64 architecture in the Android jniLibs structure, ready to be integrated into Android projects.
-- **Multi-platform**: Build for multiple platforms simultaneously (e.g., iOS + Android) in a single operation. See the [Multi-Platform Build Guide](docs/MULTI_PLATFORM_BUILD.md).
+- **Apple platforms** (`apple-universal`, `macos-universal`, `ios-universal`): Compiles the generated unmanaged C# with NativeAOT, compiles the generated Swift bindings, and packages everything into `.framework` bundles inside an [XCFramework](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle). The result is ready to drop into an Xcode project — no separate Swift source file is required.
+- **Android platforms** (`android-arm64`): Compiles the generated unmanaged C# with NativeAOT into a native `.so` (currently ARM64 / `arm64-v8a` only) and lays it out for Android `jniLibs`. **Unlike Apple builds, Android V1 does not compile or package the generated Kotlin bindings.** You still need to add the generated `.kt` file to your Android project yourself (and configure `KotlinPackageName` / `KotlinNativeLibraryName` accordingly).
+- **Multi-platform**: You can request Apple and Android targets in one config via `Build.Targets` (for example `["ios-universal", "android-arm64"]`). Combined outputs are written under platform-specific subdirectories of `ProductOutputPath`.
 
 We recommend using the automatic build support if possible.
 If you decide to [do things manually](README_MANUAL_BUILD.md), you will have to compile the generated C# file using NativeAOT, then link the resulting dynamic library into your native code and include the generated language bindings to call into it.
@@ -186,38 +186,63 @@ struct ContentView: View {
 
 ### Creating a native version of a .NET classlib for Android
 
+Android automatic builds are intentionally more limited than Apple builds in this first version:
 
-1. **Set up Android NDK**:
-   ```bash
-   export ANDROID_NDK_HOME="/path/to/android-ndk"
-   ```
+| | Apple automatic build | Android automatic build (V1) |
+| --- | --- | --- |
+| NativeAOT `.dll` → native library | Yes (`.dylib` / XCFramework) | Yes (`.so` for `arm64-v8a`) |
+| Compiles language bindings | Yes (generated `.swift` → frameworks) | No — generated `.kt` is source only |
+| Drop-in packaging | XCFramework ready for Xcode | Native lib ready for `jniLibs`; Kotlin must be added manually |
 
-2. **Create a configuration file** (`MyProject_Android_Config.json`):
-   ```json
-   {
-     "AssemblyPath": "path/to/YourAssembly.dll",
-     "Build": {
-       "Target": "android-arm64",
-       "ProductName": "YourLibraryName",
-       "ProductOutputPath": "output/path"
-     },
-     "CSharpUnmanagedOutputPath": "Generated.cs",
-     "COutputPath": "Generated.h",
-     "KotlinOutputPath": "Generated.kt",
-     "KotlinPackageName": "com.yourcompany.yourapp",
-     "KotlinNativeLibraryName": "YourLibraryName"
-   }
-   ```
+Here's a short step-by-step guide.
 
-3. **Run the generator**:
-   ```bash
-   beyondnetgen MyProject_Android_Config.json
-   ```
+- Open a terminal window.
+- Ensure you have `beyondnetgen` on your path (you can check by running `which beyondnetgen`).
+- Create a new .NET classlib project: `mkdir BeyondDemo && cd BeyondDemo && dotnet new classlib`.
+- Replace the default class with a simple type (same `Hello` example as in the Apple guide above works fine).
+- Compile the .NET class library: `dotnet publish`.
+- Note the published dll path (for example `bin/Release/net10.0/publish/BeyondDemo.dll`).
+- Set up the Android NDK environment:
 
-4. **Copy the generated libraries** to your Android project:
-   ```bash
-   cp -r output/path/android/jniLibs app/src/main/
-   ```
+```bash
+export ANDROID_NDK_HOME="/path/to/android-ndk"
+# Or, if you prefer pointing at the toolchain bin directory directly:
+# export ANDROID_NDK_BIN_PATH="/path/to/android-ndk/toolchains/llvm/prebuilt/<host-tag>/bin"
+```
+
+- Create a config file (`Config.android.json`) with contents like:
+
+```json
+{
+  "AssemblyPath": "bin/Release/net10.0/publish/BeyondDemo.dll",
+
+  "Build": {
+    "Target": "android-arm64",
+    "ProductName": "BeyondDemo",
+    "ProductOutputPath": "android-output"
+  },
+
+  "KotlinOutputPath": "android-output/BeyondDemo.kt",
+  "KotlinPackageName": "com.example.beyonddemo",
+  "KotlinNativeLibraryName": "BeyondDemo"
+}
+```
+
+- Important Kotlin-related settings:
+  - **`KotlinOutputPath`**: where the generated `.kt` bindings are written. Android automatic build does **not** compile this file for you.
+  - **`KotlinPackageName`**: package declaration used in the generated Kotlin source. Match your Android app package / module layout.
+  - **`KotlinNativeLibraryName`**: name passed to `System.loadLibrary(...)` in the generated Kotlin. It must match the native library produced by the build (`libBeyondDemo.so` → `"BeyondDemo"`).
+- Run the generator: `beyondnetgen Config.android.json`.
+- When finished, `android-output` should contain:
+  - `arm64-v8a/libBeyondDemo.so` — the NativeAOT shared library
+  - `BeyondDemo.kt` — the Kotlin bindings (because of `KotlinOutputPath` above)
+  - optionally `android-debug-symbols/` with additional NativeAOT build artifacts
+- Integrate into an Android app project:
+  1. Copy the native library into `jniLibs`, e.g. `cp -R android-output/arm64-v8a app/src/main/jniLibs/`.
+  2. Copy `BeyondDemo.kt` into your app source tree under the package path that matches `KotlinPackageName` (for example `app/src/main/java/com/example/beyonddemo/BeyondDemo.kt`).
+  3. Build and run the Android app as usual; the generated Kotlin will load `libBeyondDemo.so` and call into .NET.
+
+A complete sample Android configuration lives at [`Samples/Beyond.NET.Sample_Android_Config.json`](Samples/Beyond.NET.Sample_Android_Config.json), and a multi-platform (iOS + Android) example at [`Samples/Beyond.NET.Sample_MultiPlatform_Config.json`](Samples/Beyond.NET.Sample_MultiPlatform_Config.json).
 
 
 ## Generator Configuration
@@ -232,7 +257,7 @@ The generator currently uses a configuration file where all of its options are s
 
   "Build": {
       "Target": "apple-universal",
-      "Targets": ["ios-universal", "android-universal"],
+      "Targets": ["ios-universal", "android-arm64"],
 
       "ProductName": "AssemblyKit",
       "ProductBundleIdentifier": "com.mycompany.assemblykit",
@@ -289,7 +314,7 @@ The generator currently uses a configuration file where all of its options are s
 - **`AssemblyPath`**: Enter the path to the compiled .NET assembly you want to generate native bindings for. (Required)
 - **`Build`**: Configuration options for automatic build support. (Optional; automatic build is disabled if not provided)
     - **`Target`**: Single platform to build for. (Optional; use `Targets` for multiple platforms. Supported values: `apple-universal`, `macos-universal`, `ios-universal`, `android-arm64`)
-    - **`Targets`**: Array of platforms to build for simultaneously. (Optional; can be used with or instead of `Target`. See [Multi-Platform Build Guide](docs/MULTI_PLATFORM_BUILD.md))
+    - **`Targets`**: Array of platforms to build for simultaneously. (Optional; can be used with or instead of `Target`. When both Apple and Android targets are requested, outputs are organized under platform-specific subdirectories of `ProductOutputPath`)
     - **`ProductName`**: The name of the resulting libraries and modules. This must be different than the target assembly name and any namespaces contained within it or its dependencies. (Optional; if not provided the assembly file name suffixed with `Kit` is used)
     - **`ProductBundleIdentifier`**: The bundle identifier of the resulting frameworks (Apple platforms only). (Optional; if not provided the bundle identifier is `com.mycompany.` suffixed with the `ProductName`)
     - **`ProductOutputPath`**: The output path for the resulting libraries. When building for multiple platforms, outputs are organized in subdirectories. (Optional; if not provided, the directory of the `AssemblyPath` is used)
@@ -308,7 +333,7 @@ The generator currently uses a configuration file where all of its options are s
 - **`SwiftOutputPath`**: The generator will use this path to write the generated Swift bindings file. (Optional)
 - **`KotlinOutputPath`**: The generator will use this path to write the generated Kotlin bindings file. (Optional)
 - **`KotlinPackageName`**: When generating Kotlin code, this will be used as the package name for the generated code. (Optional, but highly recommended when targeting Kotlin. If not provided, a package name will be generated based on the assembly name)
-- **`KotlinNativeLibraryName`**: When generating Kotlin code, this will be used to load the native library. (Optional, only when not targeting Kotlin. When targeting Kotlin it must be provided unless automatic builds are enabled. In this case we can infer the native library name. That's an unsupported scenario at the moment though, so right now it IS required.)
+- **`KotlinNativeLibraryName`**: When generating Kotlin code, this is the name passed to `System.loadLibrary(...)`. It must match the native library basename without the `lib` prefix / `.so` suffix (for example `BeyondDemo` for `libBeyondDemo.so`). Required when generating Kotlin bindings.
 - **`EmitUnsupported`** (Boolean; `false` by default): If enabled (`true`), comments will be generated in the output files explaining why a binding for a certain type or API was not generated.
 - **`GenerateTypeCheckedDestroyMethods`** (Boolean; `false` by default): If enabled (`true`), the generated `*_Destroy` methods will check the type of the passed in object. If the type does not match, an unhandled(!) exception will be thrown. Use this to detect memory management bugs in your code. Since it introduces overhead, it's disabled by default. Also, there's no need for manual memory management in higher level languages like Swift so this is unnecessary.
 - **`EnableGenericsSupport`** (Boolean; `false` by default): Generics support is currently experimental and disabled by default. If you want to test the current state though or work on improving generics support, enable this by setting it to `true`.
