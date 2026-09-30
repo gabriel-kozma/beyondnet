@@ -4,7 +4,7 @@
 
 Beyond.NET is a toolset that makes it possible to call .NET code from other programming languages.
 Conceptually, think of it like the reverse of the Xamarin tools.
-Currently, C, Swift, and Kotlin are the supported output languages. But any language that has C interoperability can use the generated bindings.
+Currently, C, Swift and Kotlin are the supported output languages. But any language that has C interoperability can use the generated bindings.
 
 
 
@@ -25,7 +25,7 @@ The generated C# code can then be compiled with .NET NativeAOT which allows the 
 
 ### Prerequisites
 
-- Make sure [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) is installed and on your path.
+- Make sure [.NET 11](https://dotnet.microsoft.com/download/dotnet/11.0) is installed and on your path.
 - On macOS, make sure [Xcode](https://developer.apple.com/xcode/), the macOS and iOS SDKs and the Command Line Tools (`xcode-select --install`) are installed.
 - On Linux, make sure clang and zlib are installed.
 - For Android builds, make sure the [Android NDK](https://developer.android.com/ndk/downloads) is installed. Set either `ANDROID_NDK_HOME` to your NDK root, or `ANDROID_NDK_BIN_PATH` to the NDK llvm toolchain `bin` directory (typically `ndk_home/toolchains/llvm/prebuilt/<host-tag>/bin`).
@@ -93,14 +93,14 @@ public class Hello
 ```
 
 - Compile the .NET class library: `dotnet publish`.
-- Note the published dll's output path (should be something like this `/Path/To/BeyondDemo/bin/Release/net10.0/publish/BeyondDemo.dll`).
+- Note the published dll's output path (should be something like this `/Path/To/BeyondDemo/bin/Release/net11.0/publish/BeyondDemo.dll`).
 - Create a config file for Beyond.NET: `touch Config.json`.
 - Open `Config.json` in a text editor.
 - Replace its contents with this:
 
 ```json
 {
-    "AssemblyPath": "bin/Release/net10.0/publish/BeyondDemo.dll",
+    "AssemblyPath": "bin/Release/net11.0/publish/BeyondDemo.dll",
 
     "Build": {
         "Target": "apple-universal"
@@ -113,8 +113,8 @@ public class Hello
 - Run the generator: `beyondnetgen Config.json`.
 - On a Mac Studio M2 Ultra, this takes a little more than a minute while on an 8-Core Intel Xeon iMac Pro, it takes around 3 minutes. So it might be worth getting some coffee depending on your hardware. (TODO: Outdated info, as now with parallel building support the times are way better)
 - The individual code generation and builds steps are shown in the terminal.
-- The last printed line should include the path where the build output has been written to (ie. `Build Output has been written to "/Path/To/BeyondDemo/bin/Release/net10.0/publish"`).
-- Check the contents of the build output path: `ls bin/Release/net10.0/publish`
+- The last printed line should include the path where the build output has been written to (ie. `Build Output has been written to "/Path/To/BeyondDemo/bin/Release/net11.0/publish"`).
+- Check the contents of the build output path: `ls bin/Release/net11.0/publish`
 - It should include an XCFramework bundle called `BeyondDemoKit.xcframework`.
 - Congratulations, you now have a fully functional native version of your .NET library that can be consumed by macOS and iOS Xcode projects.
 
@@ -134,7 +134,7 @@ Now that we have an XCFramework containing binaries for macOS and iOS, we can in
 - Select the `General` tab.
 - Under `Frameworks, Libraries and Embedded Content`, click the `+` button.
 - Select `Add Other... - Add Files...`.
-- Navigate one level up in the file picker, then go to `bin/Release/net10.0/publish` (depending on your output path).
+- Navigate one level up in the file picker, then go to `bin/Release/net11.0/publish` (depending on your output path).
 - Select `BeyondDemoKit.xcframework`.
 - The XCFramework should now show up and it should already be configured to `Embed & Sign`.
 - Select `ContentView.swift` in the project navigator.
@@ -263,8 +263,8 @@ The generator currently uses a configuration file where all of its options are s
       "ProductBundleIdentifier": "com.mycompany.assemblykit",
       "ProductOutputPath": "/Path/To/ProductOutput",
 
-      "MacOSDeploymentTarget": "13.0",
-      "iOSDeploymentTarget": "16.0",
+      "MacOSDeploymentTarget": "14.0",
+      "iOSDeploymentTarget": "17.0",
 
       "DisableParallelBuild": false,
       "DisableStripDotNETSymbols": false,
@@ -286,6 +286,7 @@ The generator currently uses a configuration file where all of its options are s
   "GenerateTypeCheckedDestroyMethods": false,
   "EnableGenericsSupport": false,
   "DoNotGenerateSwiftNestedTypeAliases": false,
+  "DoNotGenerateKotlinNestedTypeAliases": false,
   "DoNotGenerateDocumentation": false,
   "DoNotDeleteTemporaryDirectories": false,
 
@@ -318,8 +319,8 @@ The generator currently uses a configuration file where all of its options are s
     - **`ProductName`**: The name of the resulting libraries and modules. This must be different than the target assembly name and any namespaces contained within it or its dependencies. (Optional; if not provided the assembly file name suffixed with `Kit` is used)
     - **`ProductBundleIdentifier`**: The bundle identifier of the resulting frameworks (Apple platforms only). (Optional; if not provided the bundle identifier is `com.mycompany.` suffixed with the `ProductName`)
     - **`ProductOutputPath`**: The output path for the resulting libraries. When building for multiple platforms, outputs are organized in subdirectories. (Optional; if not provided, the directory of the `AssemblyPath` is used)
-    - **`MacOSDeploymentTarget`**: The deployment target for the macOS portion of the XCFramework. (Optional; if not provided, `13.0` is used)
-    - **`iOSDeploymentTarget`**: The deployment target for the iOS portion of the XCFramework. (Optional; if not provided, `16.0` is used)
+    - **`MacOSDeploymentTarget`**: The deployment target for the macOS portion of the XCFramework. (Optional; if not provided, `14.0` is used)
+    - **`iOSDeploymentTarget`**: The deployment target for the iOS portion of the XCFramework. (Optional; if not provided, `17.0` is used)
     - **`DisableParallelBuild`**: Set to `true` to disable building in parallel (ie. for improved debugging). (Optional; if not provided, `false` is used)
     - **`DisableStripDotNETSymbols`**: Set to `true` to disable stripping .NET symbols (ie. for improved debugging). (Optional; if not provided, `false` is used)
     - **`NoWarn`** (Array of Strings): Use this to provide a list of [compiler warning suppressions](https://learn.microsoft.com/dotnet/csharp/language-reference/compiler-options/errors-warnings#nowarn) for the auto-generated C# project. This can be helpful in many cases, but may be required if the generated C# code uses, directly or indirectly, [.NET APIs marked as experimental](https://learn.microsoft.com/dotnet/fundamentals/runtime-libraries/preview-apis#experimentalattribute).
@@ -327,7 +328,7 @@ The generator currently uses a configuration file where all of its options are s
         For instance, in .NET 10, adding `SYSLIB5006` here helps resolve compilation issues such as:
 
         > *error SYSLIB5006: 'System.Security.Cryptography.SlhDsaAlgorithm' is for evaluation purposes only and is subject to change or removal in future updates. <mark>Suppress this diagnostic to proceed.</mark>*
-        
+
 - **`CSharpUnmanagedOutputPath`**: The generator will use this path to write the file containing the C# wrapper methods. (Required if `Build` is disabled; Optional if `Build` is enabled)
 - **`COutputPath`**: The generator will use this path to write the generated C bindings header file. (Required if `Build` is disabled; Optional if `Build` is enabled)
 - **`SwiftOutputPath`**: The generator will use this path to write the generated Swift bindings file. (Optional)
@@ -338,6 +339,7 @@ The generator currently uses a configuration file where all of its options are s
 - **`GenerateTypeCheckedDestroyMethods`** (Boolean; `false` by default): If enabled (`true`), the generated `*_Destroy` methods will check the type of the passed in object. If the type does not match, an unhandled(!) exception will be thrown. Use this to detect memory management bugs in your code. Since it introduces overhead, it's disabled by default. Also, there's no need for manual memory management in higher level languages like Swift so this is unnecessary.
 - **`EnableGenericsSupport`** (Boolean; `false` by default): Generics support is currently experimental and disabled by default. If you want to test the current state though or work on improving generics support, enable this by setting it to `true`.
 - **`DoNotGenerateSwiftNestedTypeAliases`** (Boolean; `false` by default): If set to `true`, no typealiases matching the .NET namespaces of the generated types will be emitted. That means, for example that instead of `System.String.empty` you'd have to use `System_String.empty`.
+- **`DoNotGenerateKotlinNestedTypeAliases`** (Boolean; `false` by default): If set to `true`, no nested typealiases matching the .NET namespaces will be emitted in Kotlin. By default, aliases let you use `System.Guid.newGuid()` alongside `System_Guid.newGuid()`. They require Kotlin 2.3 or later, or Kotlin 2.2 with `-Xnested-type-aliases`. Set this option to `true` for older compilers. .NET nested type names retain underscores within their namespace (for example, `Beyond.NET.Sample.Source.NestedTypeTests_MyNestedType`). Use an explicit import or `java.lang.System` to access Java's `System` when importing the bindings with a wildcard.
 - **`DoNotGenerateDocumentation`** (Boolean; `false` by default): If set to `true`, no documentation is extracted from .NET XML documentation files and no documentation is generated in the resulting bindings.
 - **`DoNotDeleteTemporaryDirectories`** (Boolean; `false` by default): If set to `true`, any temporary directories created during the generation or build process are not deleted automatically.
 - **`IncludedTypeNames`** (Array of Strings): Use this to provide a list of types that should be included even if they are not used by the target assembly.
@@ -355,7 +357,7 @@ Every .NET type that is not a primitive or an enum gets exposed as an "opaque ty
 
 By itself, those opaque types are pretty useless. To actually access instance properties, call methods or do anything useful with them, you need to call one of the generated methods and pass the instance as the first (`self`) parameter.
 
-In the Swift bindings, these opaque types are also used under the hood but not exposed to the consumer. So you can treat them as an implementation detail and use the generated APIs like regular Swift types.
+In the Swift and Kotlin bindings, these opaque types are also used under the hood but not exposed to the consumer. So you can treat them as an implementation detail and use the generated APIs like regular Swift/Kotlin types.
 
 
 
@@ -383,7 +385,7 @@ void WriteLine(System_String_t text, System_Exception_t* exception)
 
 When calling the `WriteLine` method from C, you should provide a reference to a `System_Exception_t` object which, after the method call will either be null or contain a value which indicates the method did throw.
 
-The code generator for Swift produces APIs annotated with the `throws` keyword so you can use Swift's native error handling when calling into .NET.
+The code generator for Swift produces APIs annotated with the `throws` keyword so you can use Swift's native error handling when calling into .NET. When targeting Kotlin, this is also abstracted away.
 
 **Swift:**
 ```swift
@@ -408,7 +410,7 @@ So if you, for instance obtain a reference to a `System.Guid` object by calling 
 
 Structs or other value types and delegates are no exception to this rule. Again, the only exceptions are primitive and enums. Also, it doesn't matter if you obtain an object by calling its constructor (`*_Create` functions in C) or through other means, you always have to destroy them at some point.
 
-When using the generated bindings for Swift, there's no need to deal with any of that. Instead we handle allocation and deallocation transparently and the standard Swift memory management rules apply. That means you can just treat .NET objects like regular Swift objects. That includes .NET delegates which are mapped to Swift closures.
+When using the generated bindings for Swift and Kotlin, there's no need to deal with any of that. Instead we handle allocation and deallocation transparently and the standard Swift/Kotlin memory management rules apply. That means you can just treat .NET objects like regular Swift/Kotlin objects. That includes .NET delegates which are mapped to Swift/Kotlin closures.
 
 
 
@@ -419,6 +421,8 @@ When using the C bindings, don't ever compare two pointers to .NET objects! Beca
 Instead, use the bindings for `System.Object.Equals` or `System.Object.ReferenceEquals` depending on the use case.
 
 In Swift, the `==` and `===` operators are overridden for .NET objects and call those functions respectively. So feel free to compare .NET objects in Swift like regular Swift objects.
+
+In Kotlin, only the `==` operator is overridden for .NET objects because as of now, Kotlin does not support overriding `===`. See the [Kotlin documentation](https://kotlinlang.org/docs/operator-overloading.html#equality-and-inequality-operators) for more information.
 
 
 
@@ -447,6 +451,8 @@ var favoriteNumber: Int32 { get throws }
 func favoriteNumber_set(_ value: Int32) throws
 ```
 
+In Kotlin, it's a similar story. We expose a proper getter but due to [Kotlin limitations](https://github.com/royalapplications/beyondnet/issues/81) we cannot provide a nice setter so we emit a function suffixed with `_set` instead.
+
 
 
 ## Type checking/casting
@@ -459,7 +465,7 @@ The same concept applies to casting using the C# `as` keyword and direct casts (
 
 Direct casts are exposed through the `DNObjectCastTo` method. It works the same as `DNObjectCastAs` but has a third argument which might hold a `System.Exception` object if the cast failed.
 
-In the Swift bindings, we have extension methods on `DNObject` (the base type for all generated class and struct bindings) which makes type checking/casting much easier:
+In the Swift (and Kotlin) bindings, we have extension methods on `DNObject` (the base type for all generated class and struct bindings) which makes type checking/casting much easier:
 
 ```swift
 let string = System.String.empty
@@ -488,7 +494,7 @@ There are also extensions for direct casts called `castTo`. These work the same 
 ## Method overloads, Member overrides, shadowed members
 
 Since C doesn't have the concept of inheritance, overridden and shadowed members are just redeclared for subclasses.
-In Swift, overridden or shadowed members are actually generated using the `override` keyword.
+In Swift and Kotlin, overridden or shadowed members are actually generated using the `override` keyword.
 
 Also, C doesn't support method overloading but in this case, the "fix" is not that easy.
 Take the following C# type for instance:
@@ -512,7 +518,7 @@ void OverloadTests_Print_1(System_DateTime_t value, System_Exception_t* outExcep
 void OverloadTests_Print_2(System_String_t value, System_Exception_t* outException);
 ```
 
-In Swift, we fortunately can do overloads just like in C# and so the Swift signatures for those functions look like this:
+In Swift (and similarly in Kotlin), we fortunately can do overloads just like in C# and so the Swift signatures for those functions look like this:
 
 ```swift
 class func print(_ value: Int32) throws
@@ -537,7 +543,7 @@ System_Object_t numberObj = DNObjectFromInt32(number);
 int32_t numberRet = DNObjectCastToInt32(numberObj, NULL); // TODO: Error handling
 ```
 
-In Swift we provide extension methods to convert back and forth between primitives and .NET objects. The same task can be achieved like this in Swift:
+In Swift (and similarly in Kotlin) we provide extension methods to convert back and forth between primitives and .NET objects. The same task can be achieved like this in Swift:
 
 ```swift
 let number: Int32 = 5
@@ -549,7 +555,7 @@ let numberRet = try numberObj.value // Or: try numberObj.castToInt32()
 
 ## Delegates and Events
 
-.NET Delegates and Events are mapped to C function pointers and Swift closures with some infrastructure around them to allow for proper memory management.
+.NET Delegates and Events are mapped to C function pointers and Swift/Kotlin closures with some infrastructure around them to allow for proper memory management.
 
 
 ### Delegates
@@ -667,7 +673,7 @@ I guess this is pretty self explanatory. Again, for brevity we omitted error han
 
 
 
-## Converting between .NET and Swift types
+## Converting between .NET and Swift/Kotlin types
 
 For very common types we provide convenience extensions to convert between the two worlds.
 That includes strings, dates, byte arrays (Swift `Data` objects), etc.
@@ -680,6 +686,13 @@ let swiftString = systemString.string()
 let systemStringRet = swiftString.dotNETString()
 ```
 
+And the same example in Kotlin:
+
+```kotlin
+val systemString = System.String.empty
+val kotlinString = systemString.toKString()
+val systemStringRet = kotlinString.toDotNETString()
+```
 
 
 ## .NET Interfaces in Swift

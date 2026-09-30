@@ -65,6 +65,7 @@ internal class CodeGeneratorDriver
             bool generateTypeCheckedDestroyMethods = Configuration.GenerateTypeCheckedDestroyMethods ?? false;
             bool enableGenericsSupport = Configuration.EnableGenericsSupport ?? false;
             bool doNotGenerateSwiftNestedTypeAliases = Configuration.DoNotGenerateSwiftNestedTypeAliases ?? false;
+            bool doNotGenerateKotlinNestedTypeAliases = Configuration.DoNotGenerateKotlinNestedTypeAliases ?? false;
             bool doNotGenerateDocumentation = Configuration.DoNotGenerateDocumentation ?? false;
 
             BuildConfiguration? buildConfig = Configuration.Build;
@@ -223,7 +224,8 @@ internal class CodeGeneratorDriver
                 if (string.IsNullOrEmpty(systemReferenceAssembliesDirectoryPath) ||
                     !Directory.Exists(systemReferenceAssembliesDirectoryPath)) {
                     // Fall back to hard coded path
-                    systemReferenceAssembliesDirectoryPath = "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Ref/10.0.0/ref/net10.0";
+                    // TODO(nil4): update to .NET 11 RC2 in October
+                    systemReferenceAssembliesDirectoryPath = "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Ref/11.0.0-rc.1.26425.128/ref/net11.0";
 
                     Logger.LogWarning($"Failed to gather path to system reference assemblies - falling back to hard coded path \"{systemReferenceAssembliesDirectoryPath}\"");
                 } else {
@@ -344,6 +346,7 @@ internal class CodeGeneratorDriver
                 cSharpUnmanagedResult,
                 cResult,
                 emitUnsupported,
+                doNotGenerateKotlinNestedTypeAliases,
                 typeCollectorSettings,
                 kotlinPackageName,
                 kotlinNativeLibraryName
@@ -894,6 +897,7 @@ internal class CodeGeneratorDriver
         Result cSharpUnmanagedResult,
         Result cResult,
         bool emitUnsupported,
+        bool doNotGenerateKotlinNestedTypeAliases,
         TypeCollectorSettings typeCollectorSettings,
         string kotlinPackageName,
         string kotlinNativeLibraryName
@@ -903,7 +907,8 @@ internal class CodeGeneratorDriver
 
         Generator.Kotlin.Settings settings = new(kotlinPackageName, kotlinNativeLibraryName) {
             EmitUnsupported = emitUnsupported,
-            TypeCollectorSettings = typeCollectorSettings
+            TypeCollectorSettings = typeCollectorSettings,
+            DoNotGenerateKotlinNestedTypeAliases = doNotGenerateKotlinNestedTypeAliases
         };
 
         KotlinCodeGenerator codeGenerator = new(

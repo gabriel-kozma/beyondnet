@@ -135,6 +135,7 @@ public class NativeCsProj
 
   <PropertyGroup>
     <AssemblyName>{TOKEN_ASSEMBLY_NAME}</AssemblyName>
+    <UseNativeLibPrefix>false</UseNativeLibPrefix>
     <OutputType>Library</OutputType>
     <TargetFramework>{TOKEN_TARGET_FRAMEWORK}</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -213,7 +214,7 @@ public class NativeCsProj
     <When Condition="$(RuntimeIdentifier.Contains('iossimulator'))">
       <ItemGroup>
         <!-- TODO: Temporary workaround for iOS Simulator support -->
-        <LinkerArg Include="-isysroot {TOKEN_IOS_SIMULATOR_SDK_PATH}" />
+        <LinkerArg Include="-isysroot &quot;{TOKEN_IOS_SIMULATOR_SDK_PATH}&quot;" />
 
         <!-- Set min iOS version -->
         <LinkerArg Include="-mios-simulator-version-min=$(iOSMinVersion)" />
@@ -226,7 +227,7 @@ public class NativeCsProj
     <When Condition="$(RuntimeIdentifier.Contains('ios-'))">
       <ItemGroup>
         <!-- TODO: Temporary workaround for iOS support -->
-        <LinkerArg Include="-isysroot {TOKEN_IOS_SDK_PATH}" />
+        <LinkerArg Include="-isysroot &quot;{TOKEN_IOS_SDK_PATH}&quot;" />
 
         <!-- Set min iOS version -->
         <LinkerArg Include="-mios-version-min=$(iOSMinVersion)" />

@@ -2,8 +2,9 @@
 
   <PropertyGroup>
     <AssemblyName>libBeyondDotNETSampleNative</AssemblyName>
+    <UseNativeLibPrefix>false</UseNativeLibPrefix>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishTrimmed>true</PublishTrimmed>
@@ -26,8 +27,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <MacOSMinVersion>13.0</MacOSMinVersion>
-    <iOSMinVersion>16.0</iOSMinVersion>
+    <MacOSMinVersion>14.0</MacOSMinVersion>
+    <iOSMinVersion>17.0</iOSMinVersion>
   </PropertyGroup>
 
   <!-- Compiler Customization -->
